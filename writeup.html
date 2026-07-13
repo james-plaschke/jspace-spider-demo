@@ -39,8 +39,11 @@ becomes the #1-ranked readout (of 128,256) in layer 20, at the word "webs,"
 while the model just answers "eight." There is an
 <a href="https://james-plaschke.github.io/jspace-spider-demo/">interactive demo</a>.
 Part 2 - a preregistered test of whether workspace readouts predict answer
-correctness better than logprob confidence - is running as I write this,
-and I will publish the result whether it is positive, null, or negative.
+correctness better than logprob confidence - is complete, and the answer is
+<b>negative</b>: workspace readouts carry real signal (S1 AUC 0.627 on
+TriviaQA, clear of chance) but the model's own confidence signals beat them
+on both datasets. I said I would publish whatever it said.
+<a href="results.md">Here it is</a>.
 </div>
 
 <p style="text-align:center">
@@ -116,9 +119,9 @@ three preregistered workspace scores (answer-concept routing, workspace
 stability, question-coverage) against logprob and verbalized-confidence
 baselines, on GSM8K and TriviaQA, scored by AUC with bootstrap error bars
 and a shuffled-label control. The scoring definitions and decision rules
-were frozen before any benchmark data was generated. The generation run is
-executing tonight; the result gets published here regardless of what it
-says.</p>
+were frozen before any benchmark data was generated - and the run completed
+on 2026-07-13. See <a href="results.md">the results page</a> for the full
+AUC table, controls, and flags.</p>
 
 <h2>What could be wrong with this</h2>
 <ul>
@@ -133,12 +136,22 @@ possibility, and the prereg treats it as a reportable result, not a failure.</li
 <li>One model family, one lens fit, one operator. Replicate before trusting.</li>
 </ul>
 
-<h2>What's next</h2>
-<p>The Part 2 AUC table, with whatever it says. If workspace scores beat
-logprob baselines by the preregistered margin on both datasets, that is
-early evidence for deliberation-based trust signals. If they do not, the
-first public measurement of that gap is still worth having. Either way the
-repo, the demo, and this page stay up.</p>
+<h2>What happened (Part 2 results)</h2>
+<p>Under the preregistered decision rules: <b>NEGATIVE</b>. On GSM8K the
+workspace scores hover at chance (best 0.526) while first-token logprob hits
+0.759. On TriviaQA, S1 routing shows real signal (0.627, CI excluding
+chance) - the answer's concept being visibly loaded in the workspace does
+correlate with being right - but verbalized confidence still wins at 0.722.
+One preregistration-flagged oddity worth someone's follow-up: workspace
+STABILITY on math anti-predicts correctness (AUC 0.427, CI below chance) -
+churn correlates with being right. Full table, controls, exclusions, and
+limitations: <a href="results.md">results.md</a>.</p>
+<p>The one-sentence takeaway: you can watch the answer form inside the
+model, but at 8B with an approximate lens, the model's own confidence
+signals remain the better accuracy predictors. The measurement did not
+exist before; now it does, and the null-adjacent branch of it is public. A
+70B spot-check (the paper's effects reportedly grow with scale) is the
+natural next experiment, budget permitting.</p>
 
 <div class="foot">
 <p><b>Disclosure:</b> this project is a human-AI collaboration, and I would

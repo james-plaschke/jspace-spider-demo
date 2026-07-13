@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catching the Spider - notes from fitting the first public J-lens for Llama</title>
+<style>
+  body{margin:0;background:#fff;color:#333;font:16px/1.6 system-ui,-apple-system,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:40px 20px 80px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 4px}
+  h2{font-size:19px;margin:36px 0 8px}
+  .sub{color:#666;font-size:15px;margin-bottom:24px}
+  .tldr{background:#f6f6f6;border-left:3px solid #333;padding:12px 16px;font-size:15px}
+  .tldr b{display:block;margin-bottom:4px}
+  a{color:#0b57d0;text-decoration:none}
+  a:hover{text-decoration:underline}
+  .demo-cta{display:inline-block;background:#333;color:#fff;padding:10px 18px;border-radius:6px;margin:8px 0}
+  .demo-cta:hover{background:#555;text-decoration:none}
+  ul{padding-left:22px}
+  li{margin:6px 0}
+  .foot{margin-top:48px;padding-top:16px;border-top:1px solid #eee;color:#666;font-size:14px}
+  code{background:#f4f4f4;padding:1px 5px;border-radius:3px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Catching the Spider</h1>
+<div class="sub">Notes from fitting the first public J-lens for Llama-3.1-8B, by a sales
+engineer who learned what a logprob was three weeks ago. July 2026.</div>
+
+<div class="tldr"><b>TL;DR</b>
+Anthropic's workspace paper (July 6, 2026) showed you can read a model's
+unspoken intermediate thoughts with a "Jacobian lens." I ported the lens to
+Llama-3.1-8B-Instruct - as far as I can tell, the first public fit for a
+Llama model - for about $14 of rented GPU. It works: ask the model how many
+legs "the animal that spins webs" has and the token <code>spider</code>
+becomes the #1-ranked readout (of 128,256) in layer 20, at the word "webs,"
+while the model just answers "eight." There is an
+<a href="https://james-plaschke.github.io/jspace-spider-demo/">interactive demo</a>.
+Part 2 - a preregistered test of whether workspace readouts predict answer
+correctness better than logprob confidence - is running as I write this,
+and I will publish the result whether it is positive, null, or negative.
+</div>
+
+<p style="text-align:center">
+<a class="demo-cta" href="https://james-plaschke.github.io/jspace-spider-demo/">Open the interactive explorer</a>
+</p>
+
+<h2>How I got here</h2>
+<p>I work in customer-facing engineering at a company that sells compliance
+software to medical device manufacturers. Our customers' auditors ask a
+question that AI systems currently cannot answer: "show me the decision
+process, not just the decision." When Anthropic published
+<a href="https://transformer-circuits.pub/2026/workspace/index.html">Verbalizable
+Representations Form a Global Workspace in Language Models</a>, I spent a
+week doing adversarial market research on products you could build on it.
+Every verdict came back "not now" - the science was days old and only
+partially replicated. But one cheap move stayed valuable in every branch:
+run the experiment myself, on hardware I rent, on a model whose insides I am
+allowed to look at. So I did, with an AI assistant writing the code and me
+operating the terminal (more on that below).</p>
+
+<h2>What the lens is, in one paragraph</h2>
+<p>A language model's "thinking" at any moment is a list of 4,096 numbers per
+layer - meaningful to the model, gibberish to us. The Jacobian lens is a
+translation dictionary, built by measuring (via calculus, on ordinary text)
+how nudging each middle layer's state would change the model's final word
+choice. Point the fitted lens at any internal state and it tells you which
+vocabulary words that state is pushing toward. Anthropic fitted it to
+Claude; the released code ships with Qwen examples; nobody had published a
+fit for Llama.</p>
+
+<h2>What I actually did</h2>
+<ul>
+<li>Verified the released code end-to-end on its default model (Qwen), where
+the two-hop "currency of the country shaped like a boot" prompt surfaced
+<code>Italy</code> at layer 16 - the advertised behavior, reproduced.</li>
+<li>Fitted the lens for Llama-3.1-8B-Instruct on a rented A100: 100 wikitext
+prompts, 9.5 hours overnight, checkpointed. The convergence diagnostic fell
+from 0.62 to 0.02 across the run - the textbook "settling average" curve.</li>
+<li>Built the piece the released repo does not include: batched gradient
+pursuit, the sparse decomposition that expresses an internal state as a
+nonnegative recipe of at most 25 dictionary atoms. Validated on planted
+synthetic recipes: 100% support recovery on a toy dictionary, 99.7% on the
+real 128,256-atom dictionary (which contains genuinely confusable near-twins
+like <code>spider</code>/<code>spiders</code>). It runs at 1.6 ms per
+decomposition, which makes the full Part 2 dataset about one GPU-hour.</li>
+</ul>
+
+<h2>The spider</h2>
+<p>The acceptance test, straight from the paper's style: <i>"Fact: The number
+of legs on the animal that spins webs is"</i>. The model answers "eight."
+The word spider appears nowhere in the prompt and nowhere in the output.
+But in the lens readout, <code>spider</code> is the single top-ranked token
+- rank 1 of 128,256 - at layer 20, exactly at the position of the word
+"webs," fading before the output layers. An unspoken thought, caught
+mid-flight, on a model running on a rented GPU, through a lens fitted
+overnight. <a href="https://james-plaschke.github.io/jspace-spider-demo/">Click
+around it yourself</a> - every claim in this paragraph is inspectable.</p>
+<p>One honest detail I want on the record because it taught me something:
+my first attempt failed. With a bare dangling prompt (no "Fact:" prefix),
+the instruct-tuned model read the sentence as a fill-in-the-blank worksheet
+- and the lens dutifully showed quiz-formatting concepts instead of spiders.
+The instrument was working; the mind it was reading was confused. Prompt
+framing matters, and the lens shows you when it does.</p>
+
+<h2>Why this might matter</h2>
+<p>Today, the standard machine signal for "should I trust this AI answer" is
+the model's own token confidence (logprob), plus asking it how sure it is -
+and models are notorious for being confidently wrong. The workspace paper
+suggests something better might exist: deliberation you can observe
+directly. Whether observed deliberation actually predicts correctness on
+standard benchmarks is - to my knowledge - unmeasured. That is Part 2:
+three preregistered workspace scores (answer-concept routing, workspace
+stability, question-coverage) against logprob and verbalized-confidence
+baselines, on GSM8K and TriviaQA, scored by AUC with bootstrap error bars
+and a shuffled-label control. The scoring definitions and decision rules
+were frozen before any benchmark data was generated. The generation run is
+executing tonight; the result gets published here regardless of what it
+says.</p>
+
+<h2>What could be wrong with this</h2>
+<ul>
+<li>The lens fit is the community "cheap path" (100 prompts, approximate),
+not the paper's exact 1000-prompt Jacobian spec.</li>
+<li>Lens atoms are single vocabulary tokens by construction; multi-token
+concepts are anchored by first/digit tokens. This is the method's published
+limitation, and it is why numeric GSM8K is the primary dataset.</li>
+<li>8B is small; the only independent replication (Nanda, on Qwen 27B) found
+weaker and noisier effects than the paper. A null at this scale is a live
+possibility, and the prereg treats it as a reportable result, not a failure.</li>
+<li>One model family, one lens fit, one operator. Replicate before trusting.</li>
+</ul>
+
+<h2>What's next</h2>
+<p>The Part 2 AUC table, with whatever it says. If workspace scores beat
+logprob baselines by the preregistered margin on both datasets, that is
+early evidence for deliberation-based trust signals. If they do not, the
+first public measurement of that gap is still worth having. Either way the
+repo, the demo, and this page stay up.</p>
+
+<div class="foot">
+<p><b>Disclosure:</b> this project is a human-AI collaboration, and I would
+rather over-disclose than have it discovered: Claude (Anthropic) wrote
+essentially all of the code and drove the technical decisions; I operated
+the infrastructure, ran and verified every step, made the judgment calls,
+and paid the bills. The preregistration exists precisely because AI-assisted
+work can inflate itself - frozen definitions, committed decision rules, and
+a public promise to publish the null are the counterweights I chose.
+Verify me: the <a href="https://james-plaschke.github.io/jspace-spider-demo/">demo</a>
+is interactive, the numbers above are reproducible, and the
+<a href="https://github.com/james-plaschke/jspace-spider-demo/blob/main/preregistration-v1.2.md">preregistered
+spec</a> (frozen 2026-07-08, v1.2) is committed to this repository before any
+Part 2 results were computed - the commit history is the receipt.</p>
+<p>Method credit: Gurnee et al., Anthropic (the paper and the
+<a href="https://github.com/anthropics/jacobian-lens">jacobian-lens</a> code,
+Apache-2.0). Model: Meta's Llama-3.1-8B-Instruct.<br>
+James Plaschke, July 2026 - <a href="https://github.com/james-plaschke">GitHub</a></p>
+</div>
+
+</div>
+</body>
+</html>

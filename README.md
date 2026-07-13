@@ -2,6 +2,8 @@
 
 **[Open the interactive explorer](https://james-plaschke.github.io/jspace-spider-demo/)** (works on desktop; ~1MB, fully self-contained).
 
+**[Read the writeup](https://james-plaschke.github.io/jspace-spider-demo/writeup.html)** - how this was made, what could be wrong with it, and the preregistered Part 2. The frozen prereg spec is [in this repo](preregistration-v1.2.md).
+
 ## What you are looking at
 
 Give Llama-3.1-8B-Instruct the prompt:

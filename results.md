@@ -69,6 +69,29 @@ synthetic support recovery on the real 128,256-atom dictionary.
   discrimination.
 - B4 (self-consistency baseline) was budget-optional and not run.
 
+## Post-hoc: length-stratified robustness check (labeled post-hoc per prereg 4.3)
+
+Not preregistered. The obvious confounder for the S2 inversion is generation
+length - on GSM8K, long chains of thought tend to be wrong (CoT length alone
+predicts correctness at AUC 0.251), and S2 is computed over the tail of the
+generation, so a mechanical link was plausible. It does not hold up:
+
+- **S2 x length correlation: +0.047** (essentially zero). S2 and length are
+  not entangled.
+- **Within length quartiles, S2 stays below chance in all four buckets**
+  (AUC 0.446 / 0.335 / 0.415 / 0.466). Holding length constant, workspace
+  churn still anti-predicts correctness on math. The inversion survives the
+  control - it is a real (if weak, and now genuinely puzzling) effect, not a
+  length artifact. Flagged as an open question; would be interesting to test
+  at larger scale.
+
+The same control on the one above-chance workspace signal, S1 on TriviaQA
+(0.627): length there predicts at 0.416, S1 x length correlation -0.116, and
+S1 holds AUC 0.60-0.67 across all length quartiles. That signal is also not
+a length artifact. (Per-bucket CIs are wide; the low-length GSM8K buckets
+have few incorrect items, so the cross-bucket direction, not any single
+bucket, carries the conclusion.)
+
 ## Limitations
 
 Approximate 100-prompt lens fit (not the paper's exact 1000-prompt Jacobian);

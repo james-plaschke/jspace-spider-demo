@@ -142,9 +142,10 @@ workspace scores hover at chance (best 0.526) while first-token logprob hits
 0.759. On TriviaQA, S1 routing shows real signal (0.627, CI excluding
 chance) - the answer's concept being visibly loaded in the workspace does
 correlate with being right - but verbalized confidence still wins at 0.722.
-One preregistration-flagged oddity worth someone's follow-up: workspace
-STABILITY on math anti-predicts correctness (AUC 0.427, CI below chance) -
-churn correlates with being right. Full table, controls, exclusions, and
+One oddity worth someone's follow-up: workspace STABILITY on math
+anti-predicts correctness (AUC 0.427, CI below chance) - churn correlates
+with being right, and this survives a post-hoc length control (S2 x length
+correlation +0.047; stays below chance within all four length quartiles). Full table, controls, exclusions, and
 limitations: <a href="results.md">results.md</a>.</p>
 <p>The one-sentence takeaway: you can watch the answer form inside the
 model, but at 8B with an approximate lens, the model's own confidence

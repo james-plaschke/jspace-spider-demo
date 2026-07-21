@@ -92,6 +92,67 @@ a length artifact. (Per-bucket CIs are wide; the low-length GSM8K buckets
 have few incorrect items, so the cross-bucket direction, not any single
 bucket, carries the conclusion.)
 
+## Post-hoc: incremental validity / ensemble (labeled post-hoc per prereg 4.3)
+
+Not preregistered in v1.2; this mini-prereg was frozen (committed) BEFORE the
+analysis was computed. Experiment 1 asked "does a workspace score beat the
+baselines" (no). This asks the different question: "does a workspace score add
+predictive information the baselines do not already contain" - a weak signal
+can still help an ensemble if it is partly uncorrelated with the incumbent.
+
+**Incumbent.** The strongest free signal available, i.e. the logistic
+combination of B1 + B2 + B3 (not a single baseline). We test whether adding one
+workspace score improves on that.
+
+**Grid.** All three scores (S1, S2, S3) x both datasets = 6 cells, all reported.
+Pre-specified primaries (predicted from Experiment 1): S1 on TriviaQA, S2 on
+GSM8K. The other four cells are secondary. Reporting the full grid removes any
+score-dataset cherry-pick.
+
+**Method.** Per cell: 5-fold cross-validation, features standardized within each
+training fold, out-of-fold predicted probabilities collected. delta AUC =
+AUC(baselines + score) - AUC(baselines), computed on the common valid subset for
+that cell (rows where the score and all baselines are present). 10,000-resample
+item-level bootstrap CI on the delta. Correlations of each score with each
+baseline and with correctness are reported first, since they bound the possible
+lift.
+
+**Decision.** Meaningful incremental lift = delta AUC >= 0.02 with the bootstrap
+95% CI clear of zero. Any S1 cell with delta > 0.05 triggers a leakage audit
+before being believed (S1 and B2 both derive from the answer token by
+construction). Exclusions counted.
+
+**Result: NULL on all six cells.** No workspace score improves 5-fold CV AUC
+over the combined B1+B2+B3 baseline by the preregistered threshold (delta >= 0.02
+with CI clear of zero), on either dataset. Both pre-specified primaries are flat.
+No leakage audit triggered (no S1 delta > 0.05).
+
+| dataset | score | baseline AUC | +score AUC | delta | 95% CI | n |
+|---|---|---|---|---|---|---|
+| gsm8k | s1 | 0.630 | 0.649 | +0.019 | [-0.027, +0.066] | 1319 |
+| gsm8k | **s2 (primary)** | 0.675 | 0.674 | -0.001 | [-0.053, +0.050] | 1319 |
+| gsm8k | s3 | 0.641 | 0.647 | +0.005 | [-0.043, +0.054] | 1319 |
+| triviaqa | **s1 (primary)** | 0.751 | 0.748 | -0.003 | [-0.012, +0.006] | 1696 |
+| triviaqa | s2 | 0.747 | 0.743 | -0.004 | [-0.014, +0.007] | 1696 |
+| triviaqa | s3 | 0.748 | 0.744 | -0.004 | [-0.017, +0.009] | 1696 |
+
+(TriviaQA n=1696 after excluding 7 rows with missing B2.)
+
+**The correlations explain the mechanism, and this is the informative part.**
+On TriviaQA, S1's genuine correctness signal (r = +0.21 with correctness) is
+largely redundant with the logprob baselines (r = +0.47 / +0.48 with B1 / B2) -
+the workspace's real information was already available for free in the logprobs.
+On GSM8K, the scores are nearly independent of the baselines but also nearly
+independent of correctness (|r| <= 0.10), so there is nothing to add. Two
+different reasons, one outcome: the workspace carries no correctness information
+the free confidence signals do not already contain.
+
+This closes the door Experiment 1 left ajar. Experiment 1 found S1 carried real
+signal on TriviaQA (AUC 0.627); the incremental analysis shows that signal is not
+*additive* - it is a weaker, redundant view of what logprobs already tell you.
+For correctness prediction specifically, at 8B with an approximate lens, the
+workspace has no independent value.
+
 ## Limitations
 
 Approximate 100-prompt lens fit (not the paper's exact 1000-prompt Jacobian);
